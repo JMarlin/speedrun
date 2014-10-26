@@ -1,0 +1,12 @@
+Code size: 12
+Symbol count: 3
+Relocation count: 2
+
+Symbols:
+	main = 0x0000
+	loop_a = 0x0001
+	break_a = 0x0008
+
+Relocations:
+	#1: break_a @ 0x0005
+	#2: loop_a @ 0x0007

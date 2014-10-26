@@ -1,0 +1,21 @@
+JMP main
+
+string:
+DW 4865
+DW 6C6C
+DW 6F2C
+DW 2077
+DW 6F72
+DW 6C64
+DW 2E0A
+DW 0D00
+
+main:
+    LSP 1000
+ 
+    MOV r0, string
+    CAL print
+
+    HLT
+    
+

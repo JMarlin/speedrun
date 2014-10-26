@@ -1,0 +1,45 @@
+# Project: core_system
+# Makefile created by Dev-C++ 4.9.9.2
+
+CPP  = g++.exe
+CC   = gcc.exe
+WINDRES = windres.exe
+RES  = 
+OBJ  = cpu/cpu.o ram/ram.o rom/rom.o main.o interface/interface.o gpu/gpu.o $(RES)
+LINKOBJ  = cpu/cpu.o ram/ram.o rom/rom.o main.o interface/interface.o gpu/gpu.o $(RES)
+LIBS =  -L"C:/Dev-Cpp/lib" -mwindows -lmingw32 -lSDLmain -lSDL  
+INCS =  -I"C:/Dev-Cpp/include" 
+CXXINCS =  -I"C:/Dev-Cpp/lib/gcc/mingw32/3.4.2/include"  -I"C:/Dev-Cpp/include/c++/3.4.2/backward"  -I"C:/Dev-Cpp/include/c++/3.4.2/mingw32"  -I"C:/Dev-Cpp/include/c++/3.4.2"  -I"C:/Dev-Cpp/include" 
+BIN  = core_system.exe
+CXXFLAGS = $(CXXINCS)  
+CFLAGS = $(INCS) -Dmain=SDL_main  
+RM = rm -f
+
+.PHONY: all all-before all-after clean clean-custom
+
+all: all-before core_system.exe all-after
+
+
+clean: clean-custom
+	${RM} $(OBJ) $(BIN)
+
+$(BIN): $(OBJ)
+	$(CC) $(LINKOBJ) -o "core_system.exe" $(LIBS)
+
+cpu/cpu.o: cpu/cpu.c
+	$(CC) -c cpu/cpu.c -o cpu/cpu.o $(CFLAGS)
+
+ram/ram.o: ram/ram.c
+	$(CC) -c ram/ram.c -o ram/ram.o $(CFLAGS)
+
+rom/rom.o: rom/rom.c
+	$(CC) -c rom/rom.c -o rom/rom.o $(CFLAGS)
+
+main.o: main.c
+	$(CC) -c main.c -o main.o $(CFLAGS)
+
+interface/interface.o: interface/interface.c
+	$(CC) -c interface/interface.c -o interface/interface.o $(CFLAGS)
+
+gpu/gpu.o: gpu/gpu.c
+	$(CC) -c gpu/gpu.c -o gpu/gpu.o $(CFLAGS)
