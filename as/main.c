@@ -54,7 +54,7 @@ const unsigned char command_value[] = {0x0,
                                        0x11,
                                        0x12,
                                        0x13,
-                                       0x14, 
+                                       0x14,
                                        0x15,
                                        0x16,
                                        0x17,
@@ -82,14 +82,14 @@ const char* base_command[] = {"ADD",
                               "LIT",
                               "CAL",
                               "RET",
-                              "POP", 
+                              "POP",
                               "PSH",
                               "INT",
                               "DIN",
                               "EIN",
                               "LSP",
                               "DW", "\0" };
-                              
+
 const int command_type[] = {TYP_TWOREG,
                             TYP_TWOREG,
                             TYP_TWOREG,
@@ -110,7 +110,7 @@ const int command_type[] = {TYP_TWOREG,
                             TYP_NOREG,
                             TYP_IMMONLY,
                             TYP_NOREG,
-                            TYP_ONEREG, 
+                            TYP_ONEREG,
                             TYP_ONEREG,
                             TYP_INT,
                             TYP_NOREG,
@@ -120,7 +120,7 @@ const int command_type[] = {TYP_TWOREG,
 
 
 //These will be created and added to the list of symbols
-//either when a symbol label is encountered or when 
+//either when a symbol label is encountered or when
 //a symbol which has not yet been added is found in the code
 typedef struct sct_symbol {
         char* name;
@@ -141,58 +141,58 @@ symbol** symbolList = NULL;
 int symbolCount = 0;
 
 symbol* findSymbol(char* symbolName) {
-        
+
         int i;
-        
+
         i = 0;
         if(symbolList != NULL)
-            for( ; i < symbolCount; i++) { 
+            for( ; i < symbolCount; i++) {
                 if(!strcmp(symbolList[i]->name, symbolName))
                     break;
             }
-                    
+
         if(i == symbolCount || symbolList == NULL)
             return NULL;
         else
-            return symbolList[i];        
-        
+            return symbolList[i];
+
 }
 
 symbol* addSymbol(char* symbolName, int resolved, unsigned short address) {
     int i;
-    
+
     symbol* newSymbol = (symbol*)malloc(sizeof(symbol));
     if(newSymbol == NULL) {
         printf("Error: Out of symbol memory.\n");
         return NULL;
     }
-    
+
     newSymbol->name = (char*)malloc(strlen(symbolName) + 1);
     strcpy(newSymbol->name, symbolName);
     newSymbol->resolved = resolved;
     newSymbol->address = address;
-    
+
     symbolList = (symbol**)realloc(symbolList, sizeof(symbol*)*(symbolCount + 1));
     if(symbolList == NULL) {
         printf("Error: Out of symbol list memory.\n");
         return NULL;
     }
-    
+
     symbolList[symbolCount] = newSymbol;
-    
+
     return symbolList[symbolCount++];
-    
+
 }
 
 int as_isNumber(char* testString, int allowHex) {
-    
+
     int isNumber = 1;
     int strIndex = 0;
-        
+
     for(; testString[strIndex] != 0 && ((testString[strIndex] >= '0' && testString[strIndex] <= '9') || (allowHex && ((testString[strIndex] >= 'a' && testString[strIndex] <= 'f') || (testString[strIndex] >= 'A' && testString[strIndex] <= 'F')))); strIndex++);
-    
+
     return testString[strIndex] == 0;
-    
+
 }
 
 int as_valueOf(char* numString, int base) {
@@ -200,53 +200,53 @@ int as_valueOf(char* numString, int base) {
     int place = 1;
     int offset = 0;
     int working;
-    int places; 
- 
+    int places;
+
     for(places = 0; numString[places]; places++);
-         
+
     for( ; places-place+1; place++) {
          if(numString[places-place] >= 'A' && numString[places-place] <= 'F')
              working = numString[places+offset-place] - 'A' + 10;
-             
+
          if(numString[places-place] >= 'a' && numString[places-place] <= 'f')
              working = numString[places+offset-place] - 'a' + 10;
-             
+
          if(numString[places-place] >= '0' && numString[places-place] <= '9')
-             working = numString[places+offset-place] - '0';    
-         
-         working *= (int)pow((double)base, (double)(place-1)); 
+             working = numString[places+offset-place] - '0';
+
+         working *= (int)pow((double)base, (double)(place-1));
          value += working;
     }
-    
+
     return value;
-    
+
 }
 
 instance* addInstance(char* symbolName, unsigned short address) {
-    
+
     instance* newInstance = (instance*)malloc(sizeof(instance));
     if(newInstance == NULL) {
         printf("Error: Could not allocate a new instance structure.\n");
         return NULL;
     }
-    
+
     symbol* parentSymbol = findSymbol(symbolName);
     if(parentSymbol == NULL) {
         parentSymbol = addSymbol(symbolName, 0, 0);
     }
-    
+
     newInstance->sym = parentSymbol;
     newInstance->address = address;
-    
+
     instanceList = (instance**)realloc(instanceList, sizeof(instance*) * (instanceCount + 1));
     if(instanceList == NULL) {
         printf("Error: Out of instance list memory.\n");
         return NULL;
     }
-    
+
     instanceList[instanceCount] = newInstance;
     return instanceList[instanceCount++];
-    
+
 }
 
 int as_isLabel(char* token) {
@@ -254,15 +254,15 @@ int as_isLabel(char* token) {
 }
 
 void as_labelToSymbolName(char* label) {
-    label[strlen(label)-1] = 0;    
+    label[strlen(label)-1] = 0;
 }
 
 int as_isCommand(char* token) {
 
     int i;
-    
+
     for(i = 0; strlen(base_command[i]) && (strcmp(base_command[i], token) != 0); i++);
-    
+
     return strlen(base_command[i]) == 0 ? -1 : i;
 
 }
@@ -270,42 +270,71 @@ int as_isCommand(char* token) {
 void as_dumpWhitespace(FILE* sourceFile, int* lineEnd) {
 
     int tempc;
-    
-     while(1) {
+
+    //Check to see if this is a comment
+    tempc = fgetc(sourceFile);
+    if(tempc == '\'') {
+      while(tempc != '\n' && tempc != EOF)
         tempc = fgetc(sourceFile);
+
+      if(tempc == '\n')
+        *lineEnd = 1;
+
+      if(tempc == EOF)
+        *lineEnd = 2;
+
+      return;
+    }
+
+     while(1) {
         if(tempc != ' ' &&
            tempc != '\t' &&
            tempc != '\r' &&
-           tempc != '\f')
+           tempc != '\f' &&
+           tempc != '\'')
             break;
+        //Check again for comments in the middle of whitespace
+        if(tempc == '\'') {
+          while(tempc != '\n' && tempc != EOF)
+            tempc = fgetc(sourceFile);
+
+          if(tempc == '\n')
+            *lineEnd = 1;
+
+          if(tempc == EOF)
+            *lineEnd = 2;
+
+          return;
+        }
+        tempc = fgetc(sourceFile);
     }
 
     if(tempc == '\n')
         *lineEnd = 1;
- 
+
     if(tempc == EOF) {
         *lineEnd = 2;
     }
- 
+
     if(tempc != EOF && tempc != '\n')
         fseek(sourceFile, -1, SEEK_CUR);
 
 }
 
 int as_nextToken(FILE* sourceFile, char* tokenBuffer, int bufsz, int* lineEnd) {
-    
+
     int bufIndex, tempc;
-    
+
     if(tokenBuffer == NULL || bufsz == 0) {
         printf("Error: invalid token buffer.\n");
         return 0;
     }
-    
+
     tokenBuffer[bufIndex = 0] = 0;
-    
+
     as_dumpWhitespace(sourceFile, lineEnd);
     if(*lineEnd) return 1;
-    
+
     while(bufIndex < bufsz - 1) {
         tempc = fgetc(sourceFile);
         if(tempc == EOF ||
@@ -317,21 +346,21 @@ int as_nextToken(FILE* sourceFile, char* tokenBuffer, int bufsz, int* lineEnd) {
             break;
         tokenBuffer[bufIndex++] = tempc;
     }
-    
+
     if(tempc == EOF){
         *lineEnd = 2;
         return;
     }
-    
+
     if(bufIndex == bufsz - 1)
         printf("Warning: token buffer overflow.");
-    
+
     tokenBuffer[bufIndex] = 0;
-    
+
     if(tempc == '\n') *lineEnd = 1;
-    
-    return 1; 
-    
+
+    return 1;
+
 }
 
 void as_nextLineTokens(FILE* sourceFile, char** tokens, int* tokenCount, int* eof) {
@@ -357,16 +386,16 @@ void as_nextLineTokens(FILE* sourceFile, char** tokens, int* tokenCount, int* eo
 }
 
 int as_registerNumber(char* regName) {
-    
+
     int value;
-    
+
     if((regName[0] != 'r' && regName[0] != 'R') || strlen(regName) != 2 || !as_isNumber(regName+1, 0)) {
         return -1;
     }
-         
+
     value = as_valueOf(regName+1, 10) + 1;
     return value > 7 ? -1 : value;
-    
+
 }
 
 int as_writeObject(unsigned short* memory, int binSize, char* objectName) {
@@ -388,44 +417,44 @@ int as_writeObject(unsigned short* memory, int binSize, char* objectName) {
     stringOffset = (unsigned short*)malloc(sizeof(unsigned short)*stringCount);
     for(offsetValue = i = 0; i < symbolCount; i++) {
         stringOffset[i] = offsetValue;
-        strcpy(stringTable+offsetValue, symbolList[i]->name); 
+        strcpy(stringTable+offsetValue, symbolList[i]->name);
         offsetValue += strlen(symbolList[i]->name) + 1;
     }
-    
+
     //Write the magic number
     fputc('S', outFile);
     fputc('F', outFile);
-    
+
     //Write the code size
     fputc((binSize & 0xFF00) >> 8, outFile);
     fputc((binSize & 0xFF), outFile);
-    
+
     //Write the symbol count
     fputc((symbolCount & 0xFF00) >> 8, outFile);
     fputc((symbolCount & 0xFF), outFile);
-    
+
     //Write the relocation count
-    fputc((instanceCount & 0xFF00) >> 8, outFile);    
+    fputc((instanceCount & 0xFF00) >> 8, outFile);
     fputc((instanceCount & 0xFF), outFile);
-    
+
     //Write the code
     for(i = 0; i < binSize; i++) {
-        fputc((memory[i] & 0xFF00) >> 8, outFile);    
+        fputc((memory[i] & 0xFF00) >> 8, outFile);
         fputc((memory[i] & 0xFF), outFile);
     }
-    
+
     //Write the symbol entries
     for(i = 0; i < symbolCount; i++) {
         if(symbolList[i]->resolved)
             fputc(0xFF, outFile);
         else
             putc(0x00, outFile);
-        fputc((symbolList[i]->address & 0xFF00) >> 8, outFile);    
+        fputc((symbolList[i]->address & 0xFF00) >> 8, outFile);
         fputc((symbolList[i]->address & 0xFF), outFile);
-        fputc((stringOffset[i] & 0xFF00) >> 8, outFile);    
+        fputc((stringOffset[i] & 0xFF00) >> 8, outFile);
         fputc((stringOffset[i] & 0xFF), outFile);
     }
-        
+
     //Write the relocation entries
     for(i = 0; i < instanceCount; i++) {
         for(j = 0; j < symbolCount; j++) {
@@ -435,10 +464,10 @@ int as_writeObject(unsigned short* memory, int binSize, char* objectName) {
                 break;
             }
         }
-        fputc((instanceList[i]->address & 0xFF00) >> 8, outFile);    
+        fputc((instanceList[i]->address & 0xFF00) >> 8, outFile);
         fputc((instanceList[i]->address & 0xFF), outFile);
     }
-    
+
     //Write the string table
     for(i = 0; i < offsetValue; i++) {
         fputc(stringTable[i], outFile);
@@ -454,26 +483,26 @@ int as_translateLine(FILE* sourceFile, int* address, unsigned short* memory, int
     char** tokens;
     int tokenCount, eof, i, j, commandIndex, regA, regB, words;
     symbol* tempSymbol;
-        
+
     words = 1;
-    
+
     (*lineNumber)++;
-    
+
     tokens = (char**)malloc(sizeof(char*)*20);
     if(tokens == NULL){
         printf("Error: Could not initialize token table.\n");
         return -1;
     }
-    
+
     for(i = 0; i < 20; i++)
         if((tokens[i] = (char*)malloc(sizeof(char*)*80))==NULL){
             printf("Error: could not allocate token buffer #%d.\n", i);
-            for(j = 0; j < i; j++)
-                free(tokens[j]);
+            //for(j = 0; j < i; j++)
+                //free(tokens[j]);
             free(tokens);
             return -1;
         }
-        
+
     as_nextLineTokens(sourceFile, tokens, &tokenCount, &eof);
     if(tokens == NULL)
         return -1;
@@ -482,14 +511,14 @@ int as_translateLine(FILE* sourceFile, int* address, unsigned short* memory, int
             return 0;
         else
             return 1;
-    
+
     for( i = 0; as_isLabel(tokens[i]) && i < tokenCount; i++) {
         as_labelToSymbolName(tokens[i]);
         tempSymbol = findSymbol(tokens[i]);
         if(tempSymbol == NULL)
             addSymbol(tokens[i], 1, *address);
         else {
-            if(tempSymbol->resolved){ 
+            if(tempSymbol->resolved){
                 printf("Error: multiple declaration of symbol '%s' at line %d.\n", tokens[i], *lineNumber);
                 return -1;
             }else{
@@ -498,14 +527,14 @@ int as_translateLine(FILE* sourceFile, int* address, unsigned short* memory, int
             }
         }
     }
-        
+
     if(i == tokenCount) return 1;
-    
-    if( (commandIndex = as_isCommand(tokens[i])) < 0) { 
+
+    if( (commandIndex = as_isCommand(tokens[i])) < 0) {
         printf("Error: unrecognized command '%s' at line %d.\n", tokens[i], *lineNumber);
-        return -1;     
+        return -1;
     }
-    
+
     currentCell = command_value[commandIndex] << 8;
 
     i++;
@@ -513,18 +542,18 @@ int as_translateLine(FILE* sourceFile, int* address, unsigned short* memory, int
         if(command_type[commandIndex] == TYP_NOREG) {
             memory[*address] = currentCell;
             *address += words;
-    
-            for(j = 0; j < 20; j++)
-                free(tokens[j]);
-            free(tokens);                          
-            return 1; 
+
+            //for(j = 0; j < i; j++)
+            //    free(tokens[j]);
+            free(tokens);
+            return 1;
         }else{
             printf("Error: missing operand, immediate or address at line %d.\n", *lineNumber);
-            return -1;  
+            return -1;
         }
-    
+
     if(command_type[commandIndex] == TYP_ONEREG || command_type[commandIndex] == TYP_TWOREG) {
-        
+
         if(command_type[commandIndex] == TYP_TWOREG)
             if(tokens[i][strlen(tokens[i])-1] != ',') {
                 printf("Error: expected comma immediately following first operand at line %d.\n", *lineNumber);
@@ -532,14 +561,14 @@ int as_translateLine(FILE* sourceFile, int* address, unsigned short* memory, int
             }else{
                 tokens[i][strlen(tokens[i])-1] = 0;
             }
-        
+
         regA = 0;
         if(tokens[i][0] == '[' && tokens[i][strlen(tokens[i])-1] == ']' ) {
             regA = 0x8;
             tokens[i]++; //Get rid of first brace
             tokens[i][strlen(tokens[i])-1] = 0; //And the end brace
         }
-        
+
         if(as_isNumber(tokens[i], 1)) {
             if(REG_TO_IND(regA)) {
                 memory[*address + words++] = 0xFFFF & as_valueOf(tokens[i], 16);
@@ -558,24 +587,24 @@ int as_translateLine(FILE* sourceFile, int* address, unsigned short* memory, int
                     return -1;
                 }
         }
-                
-        
-        currentCell |= regA << 4;        
-        
+
+
+        currentCell |= regA << 4;
+
         if(command_type[commandIndex] == TYP_TWOREG) {
             i++;
             if(i == tokenCount) {
                 printf("Error: missing operand, immediate or address at line %d.\n", *lineNumber);
-                return -1;  
+                return -1;
             }
-                    
-            regB = 0;                                              
+
+            regB = 0;
             if(tokens[i][0] == '[' && tokens[i][strlen(tokens[i])-1] == ']' ) {
                 regB = 0x8;
                 tokens[i]++; //Get rid of first brace
                 tokens[i][strlen(tokens[i])-1] = 0; //And the end brace
             }
-            
+
             if(as_isNumber(tokens[i], 1)) {
                 memory[*address + words++] = 0xFFFF & as_valueOf(tokens[i], 16);
             }else if(as_registerNumber(tokens[i]) >= 0) {
@@ -584,14 +613,14 @@ int as_translateLine(FILE* sourceFile, int* address, unsigned short* memory, int
                       addInstance(tokens[i], *address + 1);
                       memory[*address + words++] = 0;
                   }
-            
+
             currentCell |= regB;
-            
+
         }
     }
 
     if(command_type[commandIndex] == TYP_IMMONLY || command_type[commandIndex] == TYP_INT || command_type[commandIndex] == TYP_DATA) {
-    
+
         if(tokens[i][0] == '[' && tokens[i][strlen(tokens[i]-1)] == ']' ) {
             printf("Error: Indirect addressing is not compatible with the command at line %d.\n", *lineNumber);
             return -1;
@@ -599,30 +628,30 @@ int as_translateLine(FILE* sourceFile, int* address, unsigned short* memory, int
             if(as_isNumber(tokens[i], 1)) {
                 if(command_type[commandIndex] == TYP_INT)
                     currentCell |= 0xFF & as_valueOf(tokens[i],16);
-                
+
                 if(command_type[commandIndex] == TYP_DATA)
                     currentCell |= 0xFFFF & as_valueOf(tokens[i],16);
-                    
-                if(command_type[commandIndex] == TYP_IMMONLY)    
+
+                if(command_type[commandIndex] == TYP_IMMONLY)
                     memory[*address + words++] = 0xFFFF & as_valueOf(tokens[i],16);
             }else{
                 if(command_type[commandIndex] == TYP_INT) {
                     printf("Error: Attempt to use a symbol as an interrupt number at line %d.\n", *lineNumber);
                     return -1;
                 }
-                
+
                 if(command_type[commandIndex] == TYP_IMMONLY) {
                     addInstance(tokens[i], *address + 1);
                     memory[*address + words++] = 0;
                 }
-                
+
                 if(command_type[commandIndex] == TYP_DATA) {
                     addInstance(tokens[i], *address);
                 }
-                
+
             }
-        }    
-    
+        }
+
     }
 
     if(++i != tokenCount) {
@@ -631,11 +660,11 @@ int as_translateLine(FILE* sourceFile, int* address, unsigned short* memory, int
 
     memory[*address] = currentCell;
     *address += words;
-    
-    for(j = 0; j < 20; j++)
-        free(tokens[j]);
+
+    //for(j = 0; j < i; j++)
+        //free(tokens[j]);
     free(tokens);
-    
+
     if(eof)
         return 0;
     else
@@ -644,7 +673,7 @@ int as_translateLine(FILE* sourceFile, int* address, unsigned short* memory, int
 }
 
 int main(int argc, char *argv[]) {
-  
+
     const char usageMessage[] = "Usage:\tas source.asm [-o output.sf]\n";
     int address = 0;
     int lineNumber = 0;
@@ -652,12 +681,12 @@ int main(int argc, char *argv[]) {
     char* outName;
     FILE *sourceFile;
     unsigned short* memory;
-  
+
     if(argc != 2 && argc != 4 ) {
         printf(usageMessage);
         return 0;
     }
-    
+
     if(argc == 4) {
         if(!strcmp(argv[2], "-o")) {
             outName = argv[3];
@@ -666,48 +695,48 @@ int main(int argc, char *argv[]) {
             return 0;
         }
     }else{
-          
+
           if(!(outName = malloc(strlen(argv[1])+1))){
               printf("Error: Could not allocate memory for the output filename buffer.\n");
               return 0;
           }
-          
+
           strcpy(outName, argv[1]);
           outName[strlen(outName)-4] = '.';
           outName[strlen(outName)-3] = 's';
           outName[strlen(outName)-2] = 'f';
           outName[strlen(outName)-1] = 0;
-          
+
     }
-        
+
     sourceFile = fopen(argv[1], "r");
     if(sourceFile == NULL) {
         printf("Error: Could not open source file %s.\n", argv[1]);
         return 0;
     }
-    
+
     memory = (unsigned short*)malloc(sizeof(unsigned short)*0x10000);
     if(memory == NULL) {
         printf("Error: Could not allocate working memory in which to build the binary.\n");
         return 0;
     }
-    
+
     while(1) {
-              
+
         returnCode = as_translateLine(sourceFile, &address, memory, &lineNumber);
-        
+
         if(returnCode < 0)
             break;
-            
+
         if(returnCode == 0) {
             as_writeObject(memory, address, outName);
             break;
         }
-    
+
     }
-  
+
     fclose(sourceFile);
     free(memory);
     return 0;
-  
+
 }

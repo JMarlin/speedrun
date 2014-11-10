@@ -16,84 +16,83 @@ void cpu_reset(void) {
     currentState.ir = 0;
     currentState.flags = 0;
     currentState.itp = 0;
-    
+
     for(i = 0; i < 10; i++){
         currentState.r[i] = 0;
     }
-             
+
 }
 
 void cpu_addDevice(deviceEntry* newDevice) {
-                       
+
     deviceTable = (deviceEntry**)realloc((void*)deviceTable, sizeof(deviceEntry*)*(deviceCounter+1));
     deviceTable[deviceCounter] = newDevice;
     ++deviceCounter;
-                       
+
 }
 
 void cpu_unloadDevices(void) {
 
     free(deviceTable);
-    
+
 }
 
 void cpu_memWrite(unsigned short address, unsigned short data) {
-        
+
     int i;
-    
+
     //printf("[%X] Writing 0x%04X to 0x%04X\n", currentState.pc, data, address);
-        
+
     for(i = 0; i < deviceCounter; i++) {
-            
+
             if(address <= deviceTable[i]->endAddr
                && address >= deviceTable[i]->startAddr) {
                 deviceTable[i]->writeMethod(address, data);
-                break;   
+                break;
             }
-            
+
     }
-    
-}           
+
+}
 
 unsigned short cpu_memRead(unsigned short address) {
-        
+
     int i;
-        
-    //printf("[%X] Reading from 0x%04X\n", currentState.pc, address);    
-        
+
+    //printf("[%X] Reading from 0x%04X\n", currentState.pc, address);
+
     for(i = 0; i < deviceCounter; i++) {
-            
+
             if(address <= deviceTable[i]->endAddr
                && address >= deviceTable[i]->startAddr) {
                 return deviceTable[i]->readMethod(address);
             }
-            
+
     }
 
     return 0;
-    
+
 }
 
 int cpu_cycle(unsigned int requestedCycles) {
-         
+
     int cycle;
-         
+
     for(cycle = 0; (cycle < requestedCycles) && !(currentState.flags & FLAG_HALTED); cycle++) {
 
-#ifdef DEBUG    
+#ifdef DEBUG
         printf("[0x%04X] Executing a cycle.\n", currentState.pc);
 #endif //DEBUG
-    
         currentState.ir = cpu_memRead(currentState.pc++);
         cpu_doTransfers();
-    
+
     }
-    
+
     if(currentState.flags & FLAG_HALTED)
         return 0;
-    else    
+    else
         return requestedCycles;
-         
+
 }
 
 void cpu_doTransfers(void) {
@@ -103,119 +102,134 @@ void cpu_doTransfers(void) {
 #endif //DEBUG
 
      switch(IR_TO_CMD(currentState.ir)){
-         
+
          case CMD_ADD:
               cpu_setReg(IR_TO_REGA(currentState.ir),
                          cpu_getReg(IR_TO_REGA(currentState.ir))
                              + cpu_getReg(IR_TO_REGB(currentState.ir)));
          break;
-         
+
          case CMD_SUB:
               cpu_setReg(IR_TO_REGA(currentState.ir),
                          cpu_getReg(IR_TO_REGA(currentState.ir))
                              - cpu_getReg(IR_TO_REGB(currentState.ir)));
          break;
-         
+
          case CMD_MLT:
               cpu_setReg(IR_TO_REGA(currentState.ir),
                          cpu_getReg(IR_TO_REGA(currentState.ir))
                              * cpu_getReg(IR_TO_REGB(currentState.ir)));
          break;
-         
+
          case CMD_DIV:
               cpu_setReg(IR_TO_REGA(currentState.ir),
                          cpu_getReg(IR_TO_REGA(currentState.ir))
                              / cpu_getReg(IR_TO_REGB(currentState.ir)));
          break;
-         
+
          case CMD_AND:
               cpu_setReg(IR_TO_REGA(currentState.ir),
                          cpu_getReg(IR_TO_REGA(currentState.ir))
                              & cpu_getReg(IR_TO_REGB(currentState.ir)));
          break;
-         
+
          case CMD_OR:
               cpu_setReg(IR_TO_REGA(currentState.ir),
                          cpu_getReg(IR_TO_REGA(currentState.ir))
                              | cpu_getReg(IR_TO_REGB(currentState.ir)));
          break;
-         
+
          case CMD_NOT:
               cpu_setReg(IR_TO_REGA(currentState.ir),
                          ~cpu_getReg(IR_TO_REGA(currentState.ir)));
          break;
-         
+
          case CMD_XOR:
               cpu_setReg(IR_TO_REGA(currentState.ir),
                          cpu_getReg(IR_TO_REGA(currentState.ir))
                              ^ cpu_getReg(IR_TO_REGB(currentState.ir)));
          break;
-         
+
          case CMD_LSH:
               cpu_setReg(IR_TO_REGA(currentState.ir),
                          cpu_getReg(IR_TO_REGA(currentState.ir))
                          << cpu_getReg(IR_TO_REGB(currentState.ir)));
          break;
-         
+
          case CMD_RSH:
               cpu_setReg(IR_TO_REGA(currentState.ir),
                          cpu_getReg(IR_TO_REGA(currentState.ir))
                          >> cpu_getReg(IR_TO_REGB(currentState.ir)));
          break;
-         
+
          case CMD_HLT:
               currentState.flags |= FLAG_HALTED;
          break;
-         
+
          case CMD_CMP:
               {
                   int rA = cpu_getReg(IR_TO_REGA(currentState.ir));
                   int rB = cpu_getReg(IR_TO_REGB(currentState.ir));
-                  currentState.flags &= ~(FLAG_HALTED | FLAG_IE);
-                  if(rA > rB) currentState.flags |= FLAG_GT;
-                  if(rA < rB) currentState.flags |= FLAG_LT;
-                  if(rA == rB) currentState.flags |= FLAG_EQ;
+                  currentState.flags = 0; //Make sure to not clear halted anf interrupt enabled flags in the future
+                  if(rA > rB) {
+                    currentState.flags |= FLAG_GT;
+#ifdef DEBUG
+                    printf("GREATER\n");
+#endif //DEBUG
+                  }
+                  if(rA < rB) {
+                    currentState.flags |= FLAG_LT;
+#ifdef DEBUG
+                    printf("LESS\n");
+#endif //DEBUG
+                  }
+                  if(rA == rB) {
+                    currentState.flags |= FLAG_EQ;
+#ifdef DEBUG
+                    printf("EQUAL\n");
+#endif //DEBUG
+                  }
               }
          break;
-         
+
          case CMD_JMP:
               currentState.pc = cpu_memRead(currentState.pc);
          break;
-         
+
          case CMD_JGT:
               if(currentState.flags & FLAG_GT)
                   currentState.pc = cpu_memRead(currentState.pc);
               else
                   currentState.pc++;
          break;
-         
+
          case CMD_JLT:
               if(currentState.flags & FLAG_LT)
                   currentState.pc = cpu_memRead(currentState.pc);
               else
                   currentState.pc++;
          break;
-         
+
          case CMD_JEQ:
               if(currentState.flags & FLAG_EQ)
                   currentState.pc = cpu_memRead(currentState.pc);
               else
                   currentState.pc++;
          break;
-         
+
          case CMD_MOV:
               cpu_setReg(IR_TO_REGA(currentState.ir), cpu_getReg(IR_TO_REGB(currentState.ir)));
          break;
-         
+
          case CMD_LIT:
               currentState.itp = cpu_memRead(currentState.pc++);
          break;
-         
+
          case CMD_CAL:
-              cpu_push(currentState.pc);
+              cpu_push(currentState.pc + 1);
               currentState.pc = cpu_memRead(currentState.pc);
          break;
-         
+
          case CMD_RET:
               currentState.pc = cpu_pop();
          break;
@@ -243,23 +257,23 @@ void cpu_doTransfers(void) {
          case CMD_LSP:
               currentState.sp = cpu_memRead(currentState.pc++);
          break;
-         
+
          default:
          break;
-         
+
      }
 
 }
 
 unsigned short cpu_getReg(unsigned char regNum){
 
-    if(REG_TO_RNUM(regNum)) 
-        if(REG_TO_IND(regNum)) 
+    if(REG_TO_RNUM(regNum))
+        if(REG_TO_IND(regNum))
             return cpu_memRead(currentState.r[REG_TO_RNUM(regNum) - 1]);
         else
-            return currentState.r[REG_TO_RNUM(regNum) - 1];              
+            return currentState.r[REG_TO_RNUM(regNum) - 1];
     else
-        if(REG_TO_IND(regNum)) 
+        if(REG_TO_IND(regNum))
             return cpu_memRead(cpu_memRead(currentState.pc++));
         else
             return cpu_memRead(currentState.pc++);
@@ -268,13 +282,13 @@ unsigned short cpu_getReg(unsigned char regNum){
 
 void cpu_setReg(unsigned char regNum, unsigned short value){
 
-    if(REG_TO_RNUM(regNum)) 
-        if(REG_TO_IND(regNum)) 
+    if(REG_TO_RNUM(regNum))
+        if(REG_TO_IND(regNum))
             cpu_memWrite(currentState.r[REG_TO_RNUM(regNum) - 1], value);
         else
-            currentState.r[REG_TO_RNUM(regNum) - 1] = value;              
+            currentState.r[REG_TO_RNUM(regNum) - 1] = value;
     else
-        if(REG_TO_IND(regNum)) 
+        if(REG_TO_IND(regNum))
             cpu_memWrite(cpu_memRead(currentState.pc++), value);
 
 }
@@ -282,31 +296,35 @@ void cpu_setReg(unsigned char regNum, unsigned short value){
 void cpu_push(unsigned short data) {
 
 #ifdef DEBUG
-    printf("PUSH %X\n", currentState.sp + currentState.sc);
+    printf("PUSH %X (%X + %X)\n", currentState.sp + currentState.sc, currentState.sp, currentState.sc);
 #endif //DEBUG
 
     cpu_memWrite(currentState.sp + currentState.sc, data);
     currentState.sc += 1;
-    
+
 }
 
 unsigned short cpu_pop(void) {
-    
+
+    unsigned short temp_read;
     currentState.sc -= 1;
 
-#ifdef DEBUG    
-    printf("POP %X\n", currentState.sp + currentState.sc);
+    temp_read = cpu_memRead(currentState.sp + currentState.sc);
+
+#ifdef DEBUG
+    printf("POP %X ", currentState.sp + currentState.sc);
+    printf("(%x)\n", temp_read);
 #endif
-    
-    return cpu_memRead(currentState.sp + currentState.sc);
-    
+
+    return temp_read;
+
 }
 
 void cpu_interrupt(unsigned char interruptNumber) {
-     
+
      if(currentState.flags & FLAG_IE) {
          cpu_push(currentState.pc);
          currentState.pc = cpu_memRead(currentState.itp + interruptNumber);
      }
-     
+
 }

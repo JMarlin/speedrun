@@ -1,5 +1,5 @@
 all: speedrun
-	
+
 speedrun:
 	$(MAKE) cpu.o
 	$(MAKE) gpu.o
@@ -7,12 +7,12 @@ speedrun:
 	$(MAKE) main.o
 	$(MAKE) ram.o
 	$(MAKE) rom.o
-	gcc -o speedrun ram/ram.o rom/rom.o cpu/cpu.o gpu/gpu.o interface/interface.o main.o -lSDL
-	
+	gcc -o speedrun ram/ram.o rom/rom.o cpu/cpu.o gpu/gpu.o interface/interface.o main.o -L/boot/common/lib -lSDL
+
 cpu.o:
 	gcc -c -o cpu/cpu.o cpu/cpu.c
-	
-gpu.o:	
+
+gpu.o:
 	gcc -c -o gpu/gpu.o gpu/gpu.c
 
 interface.o:
@@ -23,7 +23,9 @@ rom.o:
 
 ram.o:
 	gcc -c -o ram/ram.o ram/ram.c
-	
+
 main.o:
 	gcc -c -o main.o main.c
-	
+
+clean:
+	rm cpu/*.o gpu/*.o interface/*.o rom/*.o ram/*.o *.o speedrun
